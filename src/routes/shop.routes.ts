@@ -135,7 +135,14 @@ router.post("/", authenticate, requireRole(ROLES.SHOP_OWNER), async (req: Reques
         const shop = await prisma.shop.create({
             data: {
                 userId: req.user!.userId,
-                ...data,
+                shopName: data.shopName,
+                description: data.description,
+                phone: data.phone,
+                email: data.email,
+                address: data.address,
+                profileImage: data.profileImage,
+                latitude: data.latitude,
+                longitude: data.longitude,
             },
         });
 
