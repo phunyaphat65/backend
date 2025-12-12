@@ -79,7 +79,8 @@ app.use((req: Request, res: Response) => {
 // ===========================
 // Start Server
 // ===========================
-app.listen(PORT, () => {
+const HOST = '0.0.0.0'; // Railway requires this
+app.listen(Number(PORT), HOST, () => {
     console.log(`
   ╔══════════════════════════════════════════╗
   ║  🚀 Server is running!                  ║
