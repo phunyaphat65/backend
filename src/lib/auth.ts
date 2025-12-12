@@ -1,8 +1,8 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production";
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
+const JWT_SECRET: any = process.env.JWT_SECRET || "your-secret-key-change-in-production";
+const JWT_EXPIRES_IN: any = process.env.JWT_EXPIRES_IN || "7d";
 
 // ===========================
 // Password Hashing
@@ -25,8 +25,7 @@ export interface JwtPayload {
 }
 
 export function generateToken(payload: JwtPayload): string {
-    const options = { expiresIn: JWT_EXPIRES_IN };
-    return jwt.sign(payload as string | object, JWT_SECRET as any, options as any);
+    return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 }
 
 export function verifyToken(token: string): JwtPayload {
