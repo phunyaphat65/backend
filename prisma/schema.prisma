@@ -1,0 +1,263 @@
+// 1. Config การเชื่อมต่อ
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+// --------------------------------------------------------
+// 1) Roles — ประเภทผู้ใช้งาน (เหลือแค่ 2 แบบ)
+// --------------------------------------------------------
+model Role {
+    id   Int    @id @default(autoincrement()) @map("role_id")
+    name String @unique @map("role_name") // job_seeker / shop_owner
+
+    // Relations
+    users User[]
+
+    @@map("roles")
+}
+
+// --------------------------------------------------------
+// 2) Users — บัญชีผู้ใช้พื้นฐาน
+// --------------------------------------------------------
+model User {
+    id     Int @id @default(autoincrement()) @map("user_id")
+    roleId Int @map("role_id")
+
+    email        String @unique
+    passwordHash String @map("password_hash")
+
+    isActive  Boolean  @default(true) @map("is_active")
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
+
+    // Relations
+    role             Role              @relation(fields: [roleId], references: [id])
+    passwordResets   PasswordReset[]
+    jobSeekerProfile JobSeekerProfile?
+    shop             Shop?
+
+    @@index([email])
+    @@map("users")
+}
+
+// --------------------------------------------------------
+// 3) Password Reset — ระบบ OTP
+// --------------------------------------------------------
+model PasswordReset {
+    id     Int @id @default(autoincrement())
+    userId Int @map("user_id")
+
+    otpCode   String   @map("otp_code")
+    otpExpiry DateTime @map("otp_expiry")
+    isUsed    Boolean  @default(false) @map("is_used")
+    createdAt DateTime @default(now()) @map("created_at")
+
+    // Relations
+    user User @relation(fields: [userId], references: [id])
+
+    @@index([userId])
+    @@index([otpCode])
+    @@map("password_resets")
+}
+
+// --------------------------------------------------------
+// 4) Work Categories
+// --------------------------------------------------------
+model Category {
+    id   Int    @id @default(autoincrement()) @map("category_id")
+    name String @unique @map("category_name")
+
+    jobSeekerCategories JobSeekerCategory[]
+    shopJobPosts        ShopJobPost[]
+
+    @@map("categories")
+}
+
+// --------------------------------------------------------
+// 5) Job Seeker Profiles
+// --------------------------------------------------------
+model JobSeekerProfile {
+    id     Int @id @default(autoincrement()) @map("seeker_id")
+    userId Int @unique @map("user_id")
+
+    fullName     String? @map("full_name")
+    profileImage String? @map("profile_image")
+    age          Int?
+    gender       String?
+    phone        String?
+    email        String?
+    address      String?
+
+    latitude  Float?
+    longitude Float?
+
+    availableDays String? @map("available_days") @db.Text
+    skills        String? @db.Text
+    experience    String? @db.Text
+
+    createdAt DateTime? @default(now()) @map("created_at")
+    updatedAt DateTime? @updatedAt @map("updated_at")
+
+    // Relations
+    user         User                @relation(fields: [userId], references: [id])
+    categories   JobSeekerCategory[]
+    matches      Match[]
+    applications Application[]
+    workHistory  WorkHistory[]
+
+    @@index([latitude, longitude])
+    @@map("job_seeker_profiles")
+}
+
+// --------------------------------------------------------
+// 6) JobSeekerCategory — Many-to-Many Link
+// --------------------------------------------------------
+model JobSeekerCategory {
+    id         Int @id @default(autoincrement())
+    seekerId   Int @map("seeker_id")
+    categoryId Int @map("category_id")
+
+    seeker   JobSeekerProfile @relation(fields: [seekerId], references: [id])
+    category Category         @relation(fields: [categoryId], references: [id])
+
+    @@unique([seekerId, categoryId])
+    @@map("job_seeker_categories")
+}
+
+// --------------------------------------------------------
+// 7) Shops — ข้อมูลร้านค้า
+// --------------------------------------------------------
+model Shop {
+    id     Int @id @default(autoincrement()) @map("shop_id")
+    userId Int @unique @map("user_id")
+
+    shopName     String  @map("shop_name")
+    description  String? @db.Text
+    phone        String?
+    email        String?
+    address      String?
+    profileImage String? @map("profile_image")
+    latitude     Float?
+    longitude    Float?
+
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
+
+    // Relations
+    user        User          @relation(fields: [userId], references: [id])
+    jobPosts    ShopJobPost[]
+    workHistory WorkHistory[]
+
+    @@index([latitude, longitude])
+    @@map("shops")
+}
+
+// --------------------------------------------------------
+// 8) ShopJobPost — โพสต์งาน
+// --------------------------------------------------------
+model ShopJobPost {
+    id         Int @id @default(autoincrement()) @map("post_id")
+    shopId     Int @map("shop_id")
+    categoryId Int @map("category_id")
+
+    jobName       String  @map("job_name")
+    description   String? @db.Text
+    contactPhone  String? @map("contact_phone")
+    address       String?
+    availableDays String? @map("available_days") @db.Text
+
+    latitude  Float?
+    longitude Float?
+
+    workDate       DateTime @map("work_date") @db.Date
+    requiredPeople Int      @map("required_people")
+    wage           Decimal  @db.Decimal(10, 2)
+
+    status    String   @default("open")
+    createdAt DateTime @default(now()) @map("created_at")
+
+    // Relations
+    shop         Shop          @relation(fields: [shopId], references: [id])
+    category     Category      @relation(fields: [categoryId], references: [id])
+    matches      Match[]
+    applications Application[]
+    workHistory  WorkHistory[]
+
+    @@index([workDate])
+    @@index([categoryId])
+    @@index([shopId, workDate])
+    @@index([latitude, longitude])
+    @@map("shop_job_posts")
+}
+
+// --------------------------------------------------------
+// 9) Matches — ระบบจับคู่
+// --------------------------------------------------------
+model Match {
+    id       Int @id @default(autoincrement()) @map("match_id")
+    seekerId Int @map("seeker_id")
+    postId   Int @map("post_id")
+
+    matchDate DateTime @default(now()) @map("match_date")
+
+    distanceKm       Float?   @map("distance_km")
+    isWithinDistance Boolean? @map("is_within_distance")
+
+    dateMatch     Boolean? @map("date_match")
+    categoryMatch Boolean? @map("category_match")
+
+    overallScore Float  @map("overall_score")
+    status       String @default("pending")
+
+    seeker JobSeekerProfile @relation(fields: [seekerId], references: [id])
+    post   ShopJobPost      @relation(fields: [postId], references: [id])
+
+    @@unique([seekerId, postId])
+    @@index([postId])
+    @@map("matches")
+}
+
+// --------------------------------------------------------
+// 10) Applications — การสมัครงาน
+// --------------------------------------------------------
+model Application {
+    id       Int @id @default(autoincrement()) @map("application_id")
+    seekerId Int @map("seeker_id")
+    postId   Int @map("post_id")
+
+    applicationDate DateTime @default(now()) @map("application_date")
+    status          String   @default("pending")
+
+    seeker JobSeekerProfile @relation(fields: [seekerId], references: [id])
+    post   ShopJobPost      @relation(fields: [postId], references: [id])
+
+    @@unique([seekerId, postId])
+    @@map("applications")
+}
+
+// --------------------------------------------------------
+// 11) Work History — ประวัติการทำงาน
+// --------------------------------------------------------
+model WorkHistory {
+    id       Int @id @default(autoincrement())
+    seekerId Int @map("seeker_id")
+    shopId   Int @map("shop_id")
+    postId   Int @map("post_id")
+
+    workDate  DateTime @map("work_date") @db.Date
+    wage      Decimal  @db.Decimal(10, 2)
+    createdAt DateTime @default(now()) @map("created_at")
+    review    String?  @db.Text
+    rating    Int?
+
+    seeker JobSeekerProfile @relation(fields: [seekerId], references: [id])
+    shop   Shop             @relation(fields: [shopId], references: [id])
+    post   ShopJobPost      @relation(fields: [postId], references: [id])
+
+    @@map("work_history")
+}
